@@ -2,17 +2,12 @@ name: Daily Ingestion to BigQuery
 
 on:
   schedule:
-    - cron: '0 4 * * *' # Tous les jours à 4h00 UTC
-  workflow_dispatch:      # Permet de le lancer manuellement
+    - cron: '0 4 * * *'
+  workflow_dispatch:
 
 jobs:
   ingest:
     runs-on: ubuntu-latest
-    # --- CRUCIAL : Permissions pour Workload Identity Federation ---
-    permissions:
-      contents: read
-      id-token: write
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -23,16 +18,13 @@ jobs:
           python-version: '3.9'
 
       - name: Install dependencies
-        run: pip install requests pandas google-cloud-bigquery pandas-gbq
+        run: pip install requests pandas google-cloud-bigquery pandas-gbq pyarrow
 
-      # --- TON BLOC D'AUTH ICI ---
-      - id: 'auth'
-        name: 'Authenticate to Google Cloud'
-        uses: 'google-github-actions/auth@v1'
-        with:
-          # Remplace bien par TES vraies valeurs de ton autre projet
-          workload_identity_provider: 'projects/123456789/locations/global/workloadIdentityPools/mon-pool/providers/mon-provider'
-          service_account: 'mon-service-account@my-project-florent-bq.iam.gserviceaccount.com'
+      - name: Authenticate with JSON Key
+        # On recrée le fichier temporairement pour que la lib Google le trouve
+        run: |
+          echo "${{ secrets.GCP_SA_KEY }}" > gcp_key.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/gcp_key.json" >> $GITHUB_ENV
 
-      - name: 'Run ingestion script'
+      - name: Run ingestion script
         run: python ingestion.py
