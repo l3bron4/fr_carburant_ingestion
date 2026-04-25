@@ -15,16 +15,15 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.10' # On passe à 3.10 pour être à jour
 
       - name: Install dependencies
         run: pip install requests pandas google-cloud-bigquery pandas-gbq pyarrow
 
       - name: Authenticate with JSON Key
-        # On recrée le fichier temporairement pour que la lib Google le trouve
         run: |
-          echo "${{ secrets.GCP_SA_KEY }}" > gcp_key.json
+          # Cette syntaxe est plus sûre pour écrire des secrets multi-lignes
+          cat <<EOF > gcp_key.json
+          ${{ secrets.GCP_SA_KEY }}
+          EOF
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/gcp_key.json" >> $GITHUB_ENV
-
-      - name: Run ingestion script
-        run: python ingestion.py
