@@ -1,40 +1,42 @@
 import requests
 import pandas as pd
 from google.cloud import bigquery
-from google.oauth2 import service_account
-import io
 import os
 
-# --- PARAMÈTRES À CONFIGURER ---
-PROJECT_ID = "my-project-florent-bq" # Remplace par ton ID projet BigQuery
+# --- PARAMÈTRES ---
+PROJECT_ID = "my-project-florent-bq"
 DATASET_ID = "raw_data_fr_carburant"
 TABLE_ID   = "fuel_api_prices_raw"
-# URL de l'API (export CSV pour une ingestion facile vers BQ)
-API_URL = "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/exports/csv"
+
+# URL de l'API en format JSON
+API_URL = "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/exports/json"
 
 def ingest_to_bigquery():
+    # Initialisation du client (automatique si authentifié via GitHub Action)
     client = bigquery.Client(project=PROJECT_ID)
     table_ref = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
 
-    print(f"Téléchargement des données...")
+    print(f"Téléchargement des données JSON...")
     response = requests.get(API_URL)
     
     if response.status_code == 200:
-        # On utilise pandas pour lire le flux CSV
-        df = pd.read_csv(io.StringIO(response.text), sep=';')
+        data = response.json()
+        
+        # Transformation en DataFrame pour un export facile
+        df = pd.DataFrame(data)
         
         # Configuration de l'upload BigQuery
         job_config = bigquery.LoadJobConfig(
-            # On écrase la table à chaque fois (Stratégie Full Refresh)
-            write_disposition="WRITE_TRUNCATE", 
-            autodetect=True, # Laisse BQ deviner le schéma pour le brut
+            write_disposition="WRITE_TRUNCATE", # On écrase la table
+            autodetect=True,                    # BQ va gérer les colonnes JSON automatiquement
         )
 
         print(f"Chargement dans BigQuery ({table_ref})...")
+        # Ingestion directe depuis le DataFrame
         job = client.load_table_from_dataframe(df, table_ref, job_config=job_config)
-        job.result()  # Attend la fin du job
+        job.result()
         
-        print(f"Succès ! {len(df)} lignes insérées dans {TABLE_ID}.")
+        print(f"Succès ! {len(df)} objets JSON insérés dans {TABLE_ID}.")
     else:
         print(f"Erreur API : {response.status_code}")
 
