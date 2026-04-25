@@ -27,3 +27,9 @@ jobs:
           ${{ secrets.GCP_SA_KEY }}
           EOF
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/gcp_key.json" >> $GITHUB_ENV
+          
+      - name: 'Run ingestion script'
+        env:
+          PYTHONUNBUFFERED: "1"
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp_key.json
+        run: python ingestion.py
